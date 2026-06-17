@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WiscWeeds Application Weather</title>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f4e8;color:#1a1a1a;padding-bottom:100px}
+header{background:#2d5016;color:#fff;padding:16px;text-align:center;font-size:18px;font-weight:700;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header small{display:block;font-size:11px;font-weight:400;opacity:.8;margin-top:2px}
+.container{max-width:600px;margin:0 auto;padding:12px}
+.section{background:#fff;border-radius:10px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.section-header{background:#3a6b1e;color:#fff;padding:12px 16px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.section-header .arrow{transition:transform .2s;font-size:12px}
+.section-header.collapsed .arrow{transform:rotate(-90deg)}
+.section-body{padding:12px 16px}
+.section-body.hidden{display:none}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:#555;margin-bottom:3px;font-weight:500}
+.field input,.field textarea,.field select{width:100%;padding:10px 12px;border:1.5px solid #d0d7c5;border-radius:8px;font-size:15px;background:#fafcf7;transition:border-color .2s;font-family:inherit}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:#3a6b1e;background:#fff}
+.field textarea{resize:vertical;min-height:80px}
+.row{display:flex;gap:10px}
+.row .field{flex:1}
+.tabs{display:flex;gap:4px;margin-bottom:12px;background:#e8eddf;border-radius:8px;padding:4px}
+.tab-btn{flex:1;padding:10px 0;border:none;border-radius:6px;font-size:14px;font-weight:600;background:transparent;color:#555;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent;font-family:inherit}
+.tab-btn.active{background:#3a6b1e;color:#fff;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+.tab-btn.has-data{color:#2d5016;font-weight:700}
+.tab-btn.has-data::after{content:'';display:block;width:6px;height:6px;background:#3a6b1e;border-radius:50%;margin:3px auto 0}
+.tab-btn.active.has-data::after{background:#fff}
+.weed-block{border:1.5px solid #d0d7c5;border-radius:8px;padding:12px;margin-bottom:12px;background:#fafcf7}
+.weed-block h4{font-size:13px;color:#3a6b1e;margin-bottom:8px}
+.species-card{border:1px solid #e0e5d8;border-radius:6px;padding:10px;margin-bottom:8px;background:#fff}
+.species-card .species-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.species-card .species-header input{flex:1;font-weight:600}
+.plot-grid{display:grid;gap:6px}
+.plot-col{background:#f5f7f0;border-radius:6px;padding:8px}
+.plot-col h5{font-size:11px;color:#888;margin-bottom:6px;text-align:center}
+.plot-col .field{margin-bottom:6px}
+.plot-col .field label{font-size:10px}
+.plot-col .field input{padding:7px 8px;font-size:13px}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;font-family:inherit}
+.btn-primary{background:#2d5016;color:#fff}
+.btn-primary:active{background:#1e3a0e;transform:scale(.98)}
+.btn-danger{background:#fff;color:#c0392b;border:1px solid #e8c5c0;padding:8px 12px;font-size:13px;border-radius:6px;cursor:pointer;font-family:inherit}
+.btn-danger:active{background:#fdf0ee}
+.add-btn{color:#3a6b1e;background:#e8eddf;border:1.5px dashed #3a6b1e;padding:10px;text-align:center;border-radius:8px;cursor:pointer;font-weight:500;font-size:14px;margin-top:8px;user-select:none}
+.add-btn:active{background:#d5ddc8}
+.submit-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;box-shadow:0 -2px 12px rgba(0,0,0,.1);z-index:100;display:flex;gap:8px}
+.submit-bar .btn{margin:0}
+.btn-clear{background:#fff;color:#888;border:1px solid #ddd;font-size:13px;padding:14px 18px}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#2d5016;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.loading{pointer-events:none;opacity:.6}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal{background:#fff;border-radius:14px;padding:24px;max-width:340px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,.2);text-align:center}
+.modal h3{font-size:17px;margin-bottom:4px;color:#1a1a1a}
+.modal p{font-size:13px;color:#666;margin-bottom:16px}
+.modal .filename{font-size:12px;color:#3a6b1e;background:#e8f5e9;padding:6px 10px;border-radius:6px;margin-bottom:16px;word-break:break-all}
+.modal-actions{display:flex;flex-direction:column;gap:8px}
+.modal-actions .btn{font-size:14px;padding:12px}
+.btn-box{background:#0061d5;color:#fff}
+.btn-box:active{background:#004fb3}
+.btn-share{background:#e8eddf;color:#3a6b1e}
+.btn-share:active{background:#d5ddc8}
+.btn-close-modal{background:transparent;color:#888;font-size:13px;padding:8px}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(min-width:500px){.plot-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<header>
+  WiscWeeds Application Weather
+  <small>Field Data Collection</small>
+</header>
+
+<div class="container">
+
+  <!-- Trial Header -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      Trial Information <span class="arrow">&#9660;</span>
+    </div>
+    <div class="section-body">
+      <div class="field"><label>Trial #</label><input type="text" id="trial_number" placeholder="e.g. 2026-ARL-01"></div>
+      <div class="field"><label>Company / Collaborators</label><input type="text" id="company" placeholder="e.g. WiscWeeds"></div>
+      <div class="field"><label>Location</label><input type="text" id="location" placeholder="e.g. Arlington, WI"></div>
+    </div>
+  </div>
+
+  <!-- App Code Tabs -->
+  <div class="section">
+    <div class="section-header">Application Code</div>
+    <div class="section-body" style="padding:12px 8px">
+      <div class="tabs" id="code-tabs">
+        <button class="tab-btn active" onclick="switchCode('A')">A</button>
+        <button class="tab-btn" onclick="switchCode('B')">B</button>
+        <button class="tab-btn" onclick="switchCode('C')">C</button>
+        <button class="tab-btn" onclick="switchCode('D')">D</button>
+        <button class="tab-btn" onclick="switchCode('E')">E</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weather -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">WEATHER <span class="arrow">&#9660;</span></div>
+    <div class="section-body" id="weather-body">
+      <div class="field"><label>Date</label><input type="date" data-field="date"></div>
+      <div class="row">
+        <div class="field"><label>Start Time</label><input type="time" data-field="start_time"></div>
+        <div class="field"><label>End Time</label><input type="time" data-field="end_time"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Air Temp (F)</label><input type="number" data-field="air_temp" inputmode="decimal"></div>
+        <div class="field"><label>Soil Temp @ 2" (F)</label><input type="number" data-field="soil_temp" inputmode="decimal"></div>
+      </div>
+      <div class="field"><label>Soil Moisture</label><input type="text" data-field="soil_moisture" placeholder="e.g. Adequate, Dry, Wet"></div>
+      <div class="row">
+        <div class="field"><label>RH%</label><input type="number" data-field="rh" inputmode="decimal"></div>
+        <div class="field"><label>Cloud Cover %</label><input type="number" data-field="cloud_cover" inputmode="decimal"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Wind Speed (Avg)</label><input type="text" data-field="wind_speed_avg" inputmode="decimal"></div>
+        <div class="field"><label>Wind (max/min)</label><input type="text" data-field="wind_speed_range" placeholder="e.g. 8/3"></div>
+      </div>
+      <div class="field"><label>Wind Direction</label>
+        <select data-field="wind_direction">
+          <option value="">Select...</option>
+          <option>N</option><option>NNE</option><option>NE</option><option>ENE</option>
+          <option>E</option><option>ESE</option><option>SE</option><option>SSE</option>
+          <option>S</option><option>SSW</option><option>SW</option><option>WSW</option>
+          <option>W</option><option>WNW</option><option>NW</option><option>NNW</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Info -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">APPLICATION INFO <span class="arrow">&#9660;</span></div>
+    <div class="section-body" id="appinfo-body">
+      <div class="field"><label>Applicator</label><input type="text" data-field="applicator"></div>
+      <div class="row">
+        <div class="field"><label>GPA</label><input type="text" data-field="gpa" inputmode="decimal"></div>
+        <div class="field"><label>Mix Size</label><input type="text" data-field="mix_size"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Nozzle Size</label><input type="text" data-field="nozzle_size"></div>
+        <div class="field"><label>Nozzle Type</label><input type="text" data-field="nozzle_type"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Boom Pressure (PSI)</label><input type="text" data-field="boom_pressure" inputmode="decimal"></div>
+        <div class="field"><label>Boom Height</label><input type="text" data-field="boom_height"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crop -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">CROP <span class="arrow">&#9660;</span></div>
+    <div class="section-body" id="crop-body">
+      <div class="field"><label>Height (Avg)</label><input type="text" data-field="height_avg"></div>
+      <div class="field"><label>Height (max/min)</label><input type="text" data-field="height_range" placeholder="e.g. 8/4"></div>
+      <div class="field"><label>Growth Stage</label><input type="text" data-field="growth_stage" placeholder="e.g. V3, R1"></div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">NOTES <span class="arrow">&#9660;</span></div>
+    <div class="section-body">
+      <div class="field"><textarea id="notes" placeholder="Additional observations..."></textarea></div>
+    </div>
+  </div>
+
+  <!-- Weed Data -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">WEED DATA <span class="arrow">&#9660;</span></div>
+    <div class="section-body" id="weed-data-body">
+      <p style="font-size:11px;color:#888;margin-bottom:10px">
+        *record weed density unit (ft&sup2; or m&sup2;)&emsp;**51.6 in of row = 1 sq m in 30 in rows
+      </p>
+      <div id="weed-blocks"></div>
+      <div class="add-btn" onclick="addWeedBlock()">+ Add Weed Data Block</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Submit Bar -->
+<div class="submit-bar">
+  <button class="btn btn-clear" onclick="clearForm()">Clear</button>
+  <button class="btn btn-primary" id="submit-btn" onclick="generatePDF()" style="flex:1">Generate PDF</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Post-generation modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modal-title">PDF Ready!</h3>
+    <div class="filename" id="modal-filename"></div>
+    <p id="modal-msg">Your PDF has been downloaded.</p>
+    <div class="modal-actions">
+      <button class="btn btn-share" id="share-btn" onclick="sharePDF()" style="display:none">Share to Box App</button>
+      <button class="btn btn-box" onclick="openBoxFolder()">Upload to Box Folder</button>
+      <button class="btn btn-close-modal" onclick="closeModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───── Data Store ───── */
+const APP_CODES = ['A','B','C','D','E'];
+let currentCode = 'A';
+const store = { weather: {}, application: {}, crop: {} };
+APP_CODES.forEach(c => { store.weather[c] = {}; store.application[c] = {}; store.crop[c] = {}; });
+
+const BOX_FOLDER_URL = 'https://uwmadison.box.com/v/weatherinformation';
+let lastPdfBlob = null;
+let lastPdfFilename = '';
+
+/* ───── UI Helpers ───── */
+function toggleSection(el) {
+  el.classList.toggle('collapsed');
+  el.nextElementSibling.classList.toggle('hidden');
+}
+function showToast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms || 3000);
+}
+
+/* ───── App Code Switching ───── */
+function saveCurrentCode() {
+  ['weather','appinfo','crop'].forEach(sec => {
+    const k = sec === 'appinfo' ? 'application' : sec;
+    document.querySelectorAll(`#${sec}-body [data-field]`).forEach(inp => {
+      store[k][currentCode][inp.dataset.field] = inp.value;
+    });
+  });
+}
+function loadCode(code) {
+  ['weather','appinfo','crop'].forEach(sec => {
+    const k = sec === 'appinfo' ? 'application' : sec;
+    document.querySelectorAll(`#${sec}-body [data-field]`).forEach(inp => {
+      inp.value = store[k][code]?.[inp.dataset.field] || '';
+    });
+  });
+}
+function switchCode(code) {
+  saveCurrentCode(); currentCode = code; loadCode(code);
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const c = APP_CODES[i];
+    btn.classList.toggle('active', c === code);
+    const has = [store.weather[c], store.application[c], store.crop[c]].some(o => Object.values(o).some(v => v));
+    btn.classList.toggle('has-data', has && c !== code);
+  });
+}
+
+/* ───── Weed Data ───── */
+let weedBlockCount = 0;
+function addWeedBlock() {
+  weedBlockCount++; const id = weedBlockCount;
+  const div = document.createElement('div'); div.className = 'weed-block'; div.id = `weed-block-${id}`;
+  div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h4>Weed Data Block</h4>
+    <button class="btn-danger" onclick="this.closest('.weed-block').remove()">Remove</button></div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="field"><label>App Code</label><select class="wb-code"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
+      <div class="field"><label># of Plots</label><select class="wb-plots" onchange="rebuildPlots(${id})"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+    </div><div class="wb-species-list"></div>
+    <div class="add-btn" onclick="addSpecies(${id})">+ Add Species</div>`;
+  document.getElementById('weed-blocks').appendChild(div); addSpecies(id);
+}
+function addSpecies(blockId) {
+  const block = document.getElementById(`weed-block-${blockId}`);
+  const list = block.querySelector('.wb-species-list');
+  const np = parseInt(block.querySelector('.wb-plots').value);
+  const card = document.createElement('div'); card.className = 'species-card';
+  let ph = '';
+  for (let i = 1; i <= np; i++) {
+    ph += `<div class="plot-col"><h5>Plot ${i}</h5>
+      <div class="field"><label>Density</label><input type="text" data-sp="density" data-plot="${i}" inputmode="decimal"></div>
+      <div class="field"><label>Height (avg)</label><input type="text" data-sp="height_avg" data-plot="${i}" inputmode="decimal"></div>
+      <div class="field"><label>Height (min/max)</label><input type="text" data-sp="height_range" data-plot="${i}"></div>
+      <div class="field"><label>Leaf # (avg)</label><input type="text" data-sp="leaf_avg" data-plot="${i}" inputmode="decimal"></div>
+      <div class="field"><label>Leaf # (min/max)</label><input type="text" data-sp="leaf_range" data-plot="${i}"></div></div>`;
+  }
+  card.innerHTML = `<div class="species-header">
+    <input type="text" class="sp-name" placeholder="Species name (e.g. Waterhemp)">
+    <button class="btn-danger" style="margin-left:8px;white-space:nowrap" onclick="this.closest('.species-card').remove()">Remove</button></div>
+    <div class="plot-grid" style="grid-template-columns:repeat(${Math.min(np,2)},1fr)">${ph}</div>`;
+  list.appendChild(card);
+}
+function rebuildPlots(blockId) {
+  const block = document.getElementById(`weed-block-${blockId}`);
+  const list = block.querySelector('.wb-species-list');
+  const names = [...list.querySelectorAll('.sp-name')].map(el => el.value);
+  list.innerHTML = '';
+  names.forEach(n => { addSpecies(blockId); const c = list.querySelectorAll('.species-card'); c[c.length-1].querySelector('.sp-name').value = n; });
+}
+
+/* ───── Collect Data ───── */
+function collectData() {
+  saveCurrentCode();
+  const data = { trial_number: document.getElementById('trial_number').value, company: document.getElementById('company').value, location: document.getElementById('location').value,
+    weather: JSON.parse(JSON.stringify(store.weather)), application: JSON.parse(JSON.stringify(store.application)), crop: JSON.parse(JSON.stringify(store.crop)),
+    notes: document.getElementById('notes').value, weed_data: [] };
+  document.querySelectorAll('.weed-block').forEach(block => {
+    const wb = { app_code: block.querySelector('.wb-code').value, num_plots: parseInt(block.querySelector('.wb-plots').value), species: [] };
+    block.querySelectorAll('.species-card').forEach(card => {
+      const sp = { name: card.querySelector('.sp-name').value, plots: [] };
+      for (let i = 1; i <= wb.num_plots; i++) { const p = {}; card.querySelectorAll(`[data-plot="${i}"]`).forEach(inp => { p[inp.dataset.sp] = inp.value; }); sp.plots.push(p); }
+      wb.species.push(sp);
+    }); data.weed_data.push(wb);
+  }); return data;
+}
+
+/* ───── PDF Generation ───── */
+function generatePDF() {
+  const btn = document.getElementById('submit-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>Generating...';
+  btn.classList.add('loading');
+
+  setTimeout(() => {
+    try {
+      const data = collectData();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
+      const pw = doc.internal.pageSize.getWidth();
+      const margin = 36, usable = pw - margin * 2;
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+      doc.text('WiscWeeds Application Weather', pw / 2, 36, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      doc.text(`Trial #: ${data.trial_number}`, margin, 56);
+      doc.text(`Company/Collaborators: ${data.company}`, margin + usable * 0.3, 56);
+      doc.text(`Location: ${data.location}`, margin + usable * 0.72, 56);
+      doc.text('Application Code', pw / 2, 72, { align: 'center' });
+
+      let startY = 78;
+      const colW = [usable*0.24, usable*0.152, usable*0.152, usable*0.152, usable*0.152, usable*0.152];
+      const hs = { fillColor:[255,255,255], textColor:[0,0,0], fontStyle:'bold', halign:'center', lineWidth:0.5, lineColor:[0,0,0] };
+      const cs = { fillColor:[255,255,255], textColor:[0,0,0], lineWidth:0.5, lineColor:[0,0,0], fontSize:8, cellPadding:3 };
+
+      function buildSection(title, fields, sd) {
+        doc.autoTable({ startY, margin:{left:margin,right:margin},
+          head:[[title,'A','B','C','D','E']],
+          body: fields.map(([k,l]) => { const r=[`${l}:`]; APP_CODES.forEach(c => r.push(sd[c]?.[k]||'')); return r; }),
+          columnStyles:{0:{halign:'right',fontStyle:'normal',cellWidth:colW[0]},1:{cellWidth:colW[1]},2:{cellWidth:colW[2]},3:{cellWidth:colW[3]},4:{cellWidth:colW[4]},5:{cellWidth:colW[5]}},
+          headStyles:{...hs,fontSize:9}, styles:{...cs}, theme:'grid',
+          didParseCell:function(d){if(d.section==='head'&&d.column.index===0)d.cell.styles.halign='left';}
+        }); startY = doc.lastAutoTable.finalY + 6;
+      }
+
+      buildSection('WEATHER',[['date','Date'],['start_time','Start Time'],['end_time','End Time'],['air_temp','Air Temp (F)'],['soil_temp','Soil Temp @ 2" (F)'],['soil_moisture','Soil Moisture'],['rh','RH%'],['cloud_cover','Cloud Cover %'],['wind_speed_avg','Wind Speed (Avg)'],['wind_speed_range','Wind Speed (max/min)'],['wind_direction','Wind Direction']],data.weather);
+      buildSection('APPLICATION INFO',[['applicator','Applicator'],['gpa','GPA'],['mix_size','Mix Size'],['nozzle_size','Nozzle Size'],['nozzle_type','Nozzle Type'],['boom_pressure','Boom Pressure (PSI)'],['boom_height','Boom Height']],data.application);
+      buildSection('CROP',[['height_avg','Height (Avg)'],['height_range','Height (max/min)'],['growth_stage','Growth Stage']],data.crop);
+
+      doc.autoTable({ startY, margin:{left:margin,right:margin}, head:[['NOTES']], body:[[data.notes||' ']], headStyles:{...hs,halign:'left',fontSize:9}, styles:{...cs,minCellHeight:50,valign:'top'}, columnStyles:{0:{cellWidth:usable}}, theme:'grid' });
+
+      if (data.weed_data.length > 0) {
+        doc.addPage(); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+        doc.text('WiscWeeds Application Weather', pw/2, 36, {align:'center'});
+        doc.autoTable({startY:48,margin:{left:margin,right:margin},head:[['WEED DATA']],body:[['*record weed density unit (ft² or m²)          **51.6 in of row = 1 sq m in 30 in rows']],headStyles:{...hs,halign:'left',fontSize:9},styles:{...cs,fontSize:7},columnStyles:{0:{cellWidth:usable}},theme:'grid'});
+        startY = doc.lastAutoTable.finalY + 8;
+        data.weed_data.forEach(wb => {
+          const np=wb.num_plots, labelW=100, plotW=Math.min(70,(usable-labelW)/np);
+          doc.setFont('helvetica','bold'); doc.setFontSize(9);
+          doc.text(`APP CODE: ${wb.app_code}`, margin, startY+4); startY+=10;
+          const plotHead=[['']]; for(let i=1;i<=np;i++) plotHead[0].push(`Plot ${i}`);
+          const bodyRows=[];
+          wb.species.forEach(sp => {
+            bodyRows.push([{content:`Species: ${sp.name}`,colSpan:np+1,styles:{fillColor:[230,230,230],fontStyle:'bold'}}]);
+            [['density','Density'],['height_avg','Height (avg)'],['height_range','Height (min/max)'],['leaf_avg','Leaf # (avg)'],['leaf_range','Leaf # (min/max)']].forEach(([k,l]) => {
+              const r=[`${l}:`]; for(let i=0;i<np;i++) r.push(sp.plots[i]?.[k]||''); bodyRows.push(r);
+            });
+          });
+          const colSt={0:{halign:'right',cellWidth:labelW}}; for(let i=1;i<=np;i++) colSt[i]={cellWidth:plotW,halign:'center'};
+          doc.autoTable({startY,margin:{left:margin,right:margin},head:plotHead,body:bodyRows,headStyles:{...hs,fontSize:8},styles:{...cs,fontSize:8},columnStyles:colSt,theme:'grid'});
+          startY = doc.lastAutoTable.finalY + 12;
+        });
+      }
+
+      const trial = (data.trial_number||'Unknown').replace(/\s+/g,'-');
+      const filename = `WiscWeeds_${trial}_${new Date().toISOString().slice(0,10)}.pdf`;
+      lastPdfBlob = doc.output('blob'); lastPdfFilename = filename;
+      doc.save(filename);
+      localStorage.setItem('wiscweeds_last_entry', JSON.stringify(data));
+
+      // Show modal
+      document.getElementById('modal-filename').textContent = filename;
+      document.getElementById('modal-msg').textContent = 'PDF downloaded! Now upload it to the shared Box folder.';
+      try {
+        const file = new File([lastPdfBlob], filename, {type:'application/pdf'});
+        if (navigator.canShare && navigator.canShare({files:[file]})) {
+          document.getElementById('share-btn').style.display = 'block';
+        }
+      } catch(e) {}
+      document.getElementById('modal').classList.add('show');
+
+    } catch (e) {
+      console.error(e);
+      showToast('Error generating PDF: ' + e.message, 5000);
+    } finally {
+      btn.innerHTML = orig; btn.classList.remove('loading');
+    }
+  }, 50);
+}
+
+/* ───── Box Integration ───── */
+function openBoxFolder() {
+  window.open(BOX_FOLDER_URL, '_blank');
+  showToast('Box folder opened'); closeModal();
+}
+async function sharePDF() {
+  if (!lastPdfBlob) { openBoxFolder(); return; }
+  try {
+    const file = new File([lastPdfBlob], lastPdfFilename, {type:'application/pdf'});
+    if (navigator.canShare && navigator.canShare({files:[file]})) {
+      await navigator.share({title: lastPdfFilename, files:[file]});
+      showToast('Shared successfully!'); closeModal();
+    } else { openBoxFolder(); }
+  } catch(e) { if(e.name!=='AbortError') openBoxFolder(); }
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('share-btn').style.display = 'none';
+}
+
+/* ───── Clear ───── */
+function clearForm() {
+  if (!confirm('Clear all form data?')) return;
+  APP_CODES.forEach(c => { store.weather[c]={}; store.application[c]={}; store.crop[c]={}; });
+  ['trial_number','company','location','notes'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('weed-blocks').innerHTML=''; weedBlockCount=0;
+  loadCode(currentCode); localStorage.removeItem('wiscweeds_draft'); showToast('Form cleared');
+}
+
+/* ───── Auto-save ───── */
+let saveTimer;
+document.addEventListener('input', () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveCurrentCode(); localStorage.setItem('wiscweeds_draft', JSON.stringify(collectData())); }, 1000);
+});
+
+/* ───── Restore draft ───── */
+window.addEventListener('load', () => {
+  const d = localStorage.getItem('wiscweeds_draft'); if(!d) return;
+  try {
+    const data = JSON.parse(d);
+    if ((data.trial_number||data.company||data.location||APP_CODES.some(c=>Object.values(data.weather?.[c]||{}).some(v=>v))) && confirm('Restore your unsaved draft?')) {
+      document.getElementById('trial_number').value=data.trial_number||'';
+      document.getElementById('company').value=data.company||'';
+      document.getElementById('location').value=data.location||'';
+      document.getElementById('notes').value=data.notes||'';
+      if(data.weather) APP_CODES.forEach(c=>{if(data.weather[c])store.weather[c]=data.weather[c];});
+      if(data.application) APP_CODES.forEach(c=>{if(data.application[c])store.application[c]=data.application[c];});
+      if(data.crop) APP_CODES.forEach(c=>{if(data.crop[c])store.crop[c]=data.crop[c];});
+      loadCode(currentCode); switchCode(currentCode);
+      if(data.weed_data) data.weed_data.forEach(wb=>{
+        addWeedBlock(); const blocks=document.querySelectorAll('.weed-block'); const block=blocks[blocks.length-1];
+        block.querySelector('.wb-code').value=wb.app_code||'A'; block.querySelector('.wb-plots').value=wb.num_plots||4;
+        const blockId=parseInt(block.id.split('-')[2]); const list=block.querySelector('.wb-species-list'); list.innerHTML='';
+        (wb.species||[]).forEach(sp=>{ addSpecies(blockId); const cards=list.querySelectorAll('.species-card'); const card=cards[cards.length-1];
+          card.querySelector('.sp-name').value=sp.name||'';
+          (sp.plots||[]).forEach((plot,pi)=>{ Object.entries(plot).forEach(([k,v])=>{ const inp=card.querySelector(`[data-sp="${k}"][data-plot="${pi+1}"]`); if(inp)inp.value=v; }); });
+        });
+      });
+    } else if(!(data.trial_number||data.company)) localStorage.removeItem('wiscweeds_draft');
+  } catch(e){ localStorage.removeItem('wiscweeds_draft'); }
+});
+</script>
+</body>
+</html>

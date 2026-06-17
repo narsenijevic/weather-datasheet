@@ -192,7 +192,8 @@ let weedBlockCount=0;
 function addWeedBlock(){ weedBlockCount++; const id=weedBlockCount; const div=document.createElement('div'); div.className='weed-block'; div.id=`weed-block-${id}`;
   div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4>Weed Data Block</h4><button class="btn-danger" onclick="this.closest('.weed-block').remove()">Remove</button></div>
     <div class="row" style="margin-bottom:8px"><div class="field"><label>App Code</label><select class="wb-code"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
-    <div class="field"><label># of Plots</label><select class="wb-plots" onchange="rebuildPlots(${id})"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div></div>
+    <div class="field"><label># of Plots</label><select class="wb-plots" onchange="rebuildPlots(${id})"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+    <div class="field"><label>Area Sampled</label><input type="text" class="wb-area" placeholder="e.g. 1 ft², 1 m²"></div></div>
     <div class="wb-plot-nums" style="margin-bottom:10px"><label style="font-size:12px;color:#555;font-weight:500;display:block;margin-bottom:4px">Plot Numbers</label><div class="plot-num-row" style="display:flex;gap:6px"></div></div>
     <div class="wb-species-list"></div><div class="add-btn" onclick="addSpecies(${id})">+ Add Species</div>`;
   document.getElementById('weed-blocks').appendChild(div); buildPlotNumInputs(id); addSpecies(id); }
@@ -224,7 +225,7 @@ function collectData(){ saveCurrentCode();
   const data={trial_number:document.getElementById('trial_number').value, company:document.getElementById('company').value, location:document.getElementById('location').value,
     weather:JSON.parse(JSON.stringify(store.weather)), application:JSON.parse(JSON.stringify(store.application)), crop:JSON.parse(JSON.stringify(store.crop)),
     notes:document.getElementById('notes').value, weed_data:[]};
-  document.querySelectorAll('.weed-block').forEach(block=>{ const wb={app_code:block.querySelector('.wb-code').value,num_plots:parseInt(block.querySelector('.wb-plots').value),plot_numbers:[...block.querySelectorAll('.plot-num-row input')].map(el=>el.value),species:[]};
+  document.querySelectorAll('.weed-block').forEach(block=>{ const wb={app_code:block.querySelector('.wb-code').value,num_plots:parseInt(block.querySelector('.wb-plots').value),plot_numbers:[...block.querySelectorAll('.plot-num-row input')].map(el=>el.value),area_sampled:block.querySelector('.wb-area').value,species:[]};
     block.querySelectorAll('.species-card').forEach(card=>{ const sp={name:card.querySelector('.sp-name').value,plots:[]};
       for(let i=1;i<=wb.num_plots;i++){const p={};card.querySelectorAll(`[data-plot="${i}"]`).forEach(inp=>{p[inp.dataset.sp]=inp.value;});sp.plots.push(p);} wb.species.push(sp);});
     data.weed_data.push(wb);}); return data; }
@@ -291,7 +292,9 @@ function generatePDF(){
         data.weed_data.forEach(wb=>{
           const np=wb.num_plots,labelW=100,plotW=Math.min(70,(usable-labelW)/np);
           doc.setFont('helvetica','bold'); doc.setFontSize(9);
-          doc.text(`APP CODE: ${wb.app_code}`,margin,startY+4); startY+=10;
+          doc.text(`APP CODE: ${wb.app_code}`,margin,startY+4);
+          if(wb.area_sampled) doc.text(`Area Sampled: ${wb.area_sampled}`,margin+200,startY+4);
+          startY+=10;
           const plotNums=wb.plot_numbers||[]; const plotHead=[['']]; for(let i=1;i<=np;i++) plotHead[0].push(plotNums[i-1]?`Plot ${plotNums[i-1]}`:`Plot ${i}`);
           const bodyRows=[];
           wb.species.forEach(sp=>{
@@ -348,7 +351,7 @@ window.addEventListener('load',()=>{ const d=localStorage.getItem('wiscweeds_dra
       loadCode(currentCode); switchCode(currentCode);
       if(data.weed_data) data.weed_data.forEach(wb=>{
         addWeedBlock(); const blocks=document.querySelectorAll('.weed-block'); const block=blocks[blocks.length-1];
-        block.querySelector('.wb-code').value=wb.app_code||'A'; block.querySelector('.wb-plots').value=wb.num_plots||4;
+        block.querySelector('.wb-code').value=wb.app_code||'A'; block.querySelector('.wb-plots').value=wb.num_plots||4; block.querySelector('.wb-area').value=wb.area_sampled||'';
         const blockId=parseInt(block.id.split('-')[2]); buildPlotNumInputs(blockId);
         if(wb.plot_numbers)(wb.plot_numbers).forEach((num,i)=>{ const inp=block.querySelectorAll('.plot-num-row input')[i]; if(inp)inp.value=num; });
         const list=block.querySelector('.wb-species-list'); list.innerHTML='';
